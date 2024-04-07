@@ -185,11 +185,11 @@ def ignore():
         # break
     pass
 
-class ScoreBoarding:
+class ScoreBoard:
     def __init__(self, configs = {}):
         # Initial empty DataFrame setup
         self.columns = ['Instruction', 'Issue', 'Read', 'Execute', 'Write']
-        self.scoreboarding = pd.DataFrame(columns=self.columns)
+        self.scoreboard = pd.DataFrame(columns=self.columns)
         self.base_inst = {
             'Instruction': '',
             'Issue': False,
@@ -228,63 +228,71 @@ class ScoreBoarding:
         inst_df = pd.DataFrame([new_inst])
         inst_df['n_ciclos'] =inst_df['n_ciclos'].astype('Int64')
         # Append the new instruction to the DataFrame
-        self.scoreboarding = pd.concat([self.scoreboarding, inst_df],
+        self.scoreboard = pd.concat([self.scoreboard, inst_df],
                              ignore_index=True)
 
-        index_inst = self.scoreboarding.index[-1]
-        self.n_insts = self.scoreboarding.index[-1] + 1
+        index_inst = self.scoreboard.index[-1]
+        self.n_insts = self.scoreboard.index[-1] + 1
+        self.inst_order.append([i for i in range(index_inst + 1,index_inst + 5)])
         
 
     def update_instruction_1(self, inst_number):
-        current_inst = self.scoreboarding.loc[self.scoreboarding.index == inst_number, :]
+        current_inst = self.scoreboard.loc[self.scoreboard.index == inst_number, :]
         n_ciclos = int(current_inst['n_ciclos'].values[0])
 
         for idc in range(1, self.n_cols):
             if idc != 3:
                 if current_inst.iloc[ 0, idc] == False:
                     self.current_cicle += 1
-                    self.scoreboarding.iloc[
-                        self.scoreboarding.index == inst_number, idc
+                    self.scoreboard.iloc[
+                        self.scoreboard.index == inst_number, idc
                                         ] = self.current_cicle
                     break
             else:
                 if current_inst.iloc[ 0, idc] == False:
                     self.current_cicle += n_ciclos
-                    self.scoreboarding.iloc[
-                        self.scoreboarding.index == inst_number, idc
+                    self.scoreboard.iloc[
+                        self.scoreboard.index == inst_number, idc
                                         ] = self.current_cicle
 
                     break
 
     def update_instruction(self, inst_number):
-        current_inst = self.scoreboarding.loc[self.scoreboarding.index == inst_number, :]
+        current_inst = self.scoreboard.loc[self.scoreboard.index == inst_number, :]
         n_ciclos = int(current_inst['n_ciclos'].values[0])
 
         for idc in range(1, self.n_cols):
             if idc != 3:
-                if current_inst.iloc[ 0, idc] == False:
+                if current_inst.iloc[ 0, idc] is False:
                     self.current_cicle += 1
-                    self.scoreboarding.iloc[
-                        self.scoreboarding.index == inst_number, idc
+                    self.scoreboard.iloc[
+                        self.scoreboard.index == inst_number, idc
                                         ] = self.current_cicle
                     break
             else:
-                if current_inst.iloc[ 0, idc] == False:
+                if current_inst.iloc[ 0, idc] is False:
                     self.current_cicle += n_ciclos
-                    self.scoreboarding.iloc[
-                        self.scoreboarding.index == inst_number, idc
+                    self.scoreboard.iloc[
+                        self.scoreboard.index == inst_number, idc
                                         ] = self.current_cicle
 
                     break
 
     def __str__(self):
-        return self.scoreboarding.to_string()
+        return self.scoreboard.to_string()
+
+    def update_scoreboard(self):
+        for inst in range(len(self.inst_order)):
+            print(self.inst_order[inst])
+            for cicle in range(4):
+                
+                self.update_instruction(inst)
 
 # for c in configs.items():
 #     print(c)
 
 # Example usage
-sb = ScoreBoarding(configs=configs)
+sb = ScoreBoard(configs=configs)
 
 
 for i in instructions:
@@ -293,12 +301,11 @@ for i in instructions:
 
 # sb.main()
 
-sb.update_instruction(0)
-sb.update_instruction(0)
-sb.update_instruction(0)
-sb.update_instruction(1)
+sb.update_scoreboard()
 
-print(sb)
+
+# print(sb.inst_order)
+print(sb.scoreboard)
 
 # # def split_into_chunks(lst, chunk_size=4):
 # #     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
