@@ -147,43 +147,9 @@ def read_configs(filename):
         #     }
     return configs
 
-configs = read_configs('conf.s')
+configs = pd.DataFrame(read_configs('conf.s'))
+
 instructions = read_instruction_file('example.s')
-
-def ignore():
-    # data = {
-    #     'Instruction': [i for i in instructions],
-    #     'Issue': [0 for idx, _ in enumerate(instructions)],
-    #     'Read' : [0 for idx_, _ in enumerate(instructions)],
-    #     'Execute' : [0 for idx_idx, _ in enumerate(instructions)],
-    #     'Write' : [0 for idx_idx, _ in enumerate(instructions)],
-    # }
-
-    # scoreboarding = pd.DataFrame(data)
-    # # print(scoreboarding)
-
-    # cicle = 0
-    # def score_nick(n):
-    #     return scoreboarding.loc[scoreboarding.index == n, :]
-
-    # def manual_update_score(inst_number, issue=0, read=0, execute=0, write=0):
-    #     current_inst = score_nick(inst_number)
-    #     # print(current_inst)
-    #     return current_inst
-
-    # print(manual_update_score(3))
-
-    # for cicle in range(1,100):
-    #     if cicle > 3:
-    #         scoreboarding.iloc[-1,-1] = 1
-    #     print(score_nick(1))
-    #     if scoreboarding.iloc[-1,-1] == 1:
-    #         break
-    # # for i in instructions: 
-    #     print(i)
-        # print(read_instruction(i))
-        # break
-    pass
 
 class ScoreBoard:
     def __init__(self, configs = {}):
@@ -205,6 +171,11 @@ class ScoreBoard:
         self.current_cicle = 0
         self.configs = configs
         self.cicle_usage = [0, ]
+        self.registers = pd.DataFrame({
+            'int': ['-' for i in range(32)],
+            'float': ['-' for i in range(32)]
+        })
+
 
     def get_unit(self, inst_type):
         if inst_type == 'fld' or inst_type == 'fsd':
@@ -226,7 +197,7 @@ class ScoreBoard:
         inst_unit = self.get_unit(inst['opname'])
         new_inst['n_ciclos'] = int(self.configs[inst_unit]['n_ciclos'])
         inst_df = pd.DataFrame([new_inst])
-        inst_df['n_ciclos'] =inst_df['n_ciclos'].astype('Int64')
+        inst_df['n_ciclos'] = inst_df['n_ciclos'].astype('Int64')
         # Append the new instruction to the DataFrame
         self.scoreboard = pd.concat([self.scoreboard, inst_df],
                              ignore_index=True)
@@ -288,8 +259,74 @@ class ScoreBoard:
                 
                 self.update_instruction(inst)
 
-# for c in configs.items():
-#     print(c)
+
+class FunctionalUnit():
+    OPTOUNIT = {
+            'fld': 'int',
+            'fsd': 'int',
+            'fadd': 'add',
+            'fsub': 'add',
+            'fmul': 'mult',
+            'fdiv': 'div'
+        }
+
+    def __init__(self, config):
+        self.base_status = {
+            'unit': '',
+            'busy': False,
+            'op': None,
+            'fi': None,
+            'fj': None,
+            'fk': None,
+            'qj': None,
+            'qk': None,
+            'rj': None,
+            'rk': None,
+            'cicles_left': 0,
+        }
+        self.config = config
+        self.functionalunit = pd.DataFrame(columns=self.base_status.keys())
+        self.fill_unit()
+        
+
+    def fill_unit(self):
+        for c in self.config.columns:
+            new_unit = self.base_status.copy()
+            for unit in range(self.config.loc['n_unidades', c]):
+                new_unit['unit'] = f'{c}_{unit+1}'
+                unit_df = pd.DataFrame([new_unit])
+                self.functionalunit = pd.concat([self.functionalunit, unit_df],
+                             ignore_index=True)
+
+
+    
+    def start_unit(self, op, fi, fj, fk = None, qj = None, qk = None):
+        unit_type = self.OPTOUNIT[op]
+        unit = False
+        for u in self.functionalunit['unit']:
+            if (u[:-2] == unit_type) and (
+                self.functionalunit.loc[
+                    self.functionalunit['unit'] == u, 'busy'].values[0] == False):
+                unit = u
+                break
+        if not unit:
+            print(f'cannot start {op}')
+            return False
+        print('can')
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'busy'] = True
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'op'] = op
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'fi'] = fi
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'fj'] = fj
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'fk'] = fk
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'qj'] = qj
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'qk'] = qk
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'rj'] = False
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'rk'] = False
+        self.functionalunit.loc[self.functionalunit['unit'] == unit, 'cicles_left'] = self.config.loc['n_ciclos', unit_type]
+        
+        return True
+
+print(configs)
 
 # Example usage
 sb = ScoreBoard(configs=configs)
@@ -307,19 +344,11 @@ sb.update_scoreboard()
 # print(sb.inst_order)
 print(sb.scoreboard)
 
-# # def split_into_chunks(lst, chunk_size=4):
-# #     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
+fu = FunctionalUnit(configs)
 
-# # flat_list = sum(sb.inst_order, [])
-# # s = sorted(flat_list, key=lambda x: x[1])
-# # print(s)
+for i in instructions:
+    fu.start_unit(i['opname'], i['rd'], i['rs1'], i['rs2'])
 
-# # for i in split_into_chunks(s):
-# #     print(i)
-# # # for i in sb.inst_order:
-# # #     print(i)
+print(fu.functionalunit)
 
-# c = read_configs('conf.s')
-# for i in c:
-#     print(i)
